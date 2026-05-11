@@ -12,6 +12,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Email and password required' }, { status: 400 });
   }
 
+  if (!email.toLowerCase().endsWith('@supersheldon.com')) {
+    return NextResponse.json({ ok: false, error: 'Access restricted to @supersheldon.com accounts' }, { status: 403 });
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error || !data.session) {

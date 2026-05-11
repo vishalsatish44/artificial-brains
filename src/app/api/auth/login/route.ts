@@ -16,10 +16,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Access restricted to @supersheldon.com accounts' }, { status: 403 });
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  let { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error || !data.session) {
-    return NextResponse.json({ ok: false, error: error?.message ?? 'Login failed' }, { status: 401 });
+  // First-time user — auto-register and sign in
+  if (error) {
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+    if (signUpError) {
+      // "User already registered" means wrong password
+      const msg = signUpError.message.toLowerCase().includes('already registered')
+        ? 'Incorrect password'
+        : signUpError.message;
+      return NextResponse.json({ ok: false, error: msg }, { status: 401 });
+    }
+    data = signUpData as typeof data;
+  }
+
+  if (!data.session) {
+    return NextResponse.json({ ok: false, error: 'Login failed — check your credentials' }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true });

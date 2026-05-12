@@ -7,7 +7,7 @@ import { useApi } from '@/hooks/useApi';
 import { FilterBar, EMPTY_FILTERS, buildFilterParams, type FilterState, type FilterOptions } from '@/components/FilterBar';
 import {
   AlertTriangle, CheckCircle2, Clock,
-  Search, ChevronDown, ChevronLeft, ChevronRight, Download, SlidersHorizontal, MessageSquare,
+  Search, ChevronDown, ChevronLeft, ChevronRight, Download, SlidersHorizontal, MessageSquare, Sparkles, Loader2,
 } from 'lucide-react';
 
 const PAGE_SIZE = 50;
@@ -116,13 +116,15 @@ function WaSendBtn({ lead }: { lead: ApiLead }) {
 }
 
 export default function HistoryPage() {
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch]           = useState('');
-  const [filter, setFilter]           = useState<ScoreLabelKey>('All');
-  const [page, setPage]               = useState(0);
-  const [activeId, setActiveId]       = useState<string | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filters, setFilters]         = useState<FilterState>(EMPTY_FILTERS);
+  const [searchInput, setSearchInput]   = useState('');
+  const [search, setSearch]             = useState('');
+  const [filter, setFilter]             = useState<ScoreLabelKey>('All');
+  const [page, setPage]                 = useState(0);
+  const [activeId, setActiveId]         = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen]   = useState(false);
+  const [filters, setFilters]           = useState<FilterState>(EMPTY_FILTERS);
+  const [nlQuery, setNlQuery]           = useState('');
+  const [nlLoading, setNlLoading]       = useState(false);
 
   // Debounce search input → server-side search param
   useEffect(() => {
@@ -158,6 +160,25 @@ export default function HistoryPage() {
   function changeFilter(f: ScoreLabelKey) { setFilter(f); setPage(0); }
 
   const activeCount = Object.values(filters).filter(Boolean).length;
+
+  async function applyNlFilter() {
+    const q = nlQuery.trim();
+    if (!q || nlLoading) return;
+    setNlLoading(true);
+    try {
+      const res  = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'filter', query: q, options: filterOpts }),
+      });
+      const json = await res.json();
+      if (json.ok && json.filterState) {
+        setFilters((f) => ({ ...f, ...json.filterState }));
+        setFiltersOpen(true);
+        setPage(0);
+      }
+    } finally { setNlLoading(false); }
+  }
 
   const csvParams = new URLSearchParams();
   if (filter !== 'All') csvParams.set('label', filter);
@@ -215,6 +236,36 @@ export default function HistoryPage() {
           <FilterBar filters={filters} options={filterOpts ?? null} onChange={patchFilter} onReset={resetFilters} />
         </div>
       )}
+
+      {/* AI Natural-Language Filter */}
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.875rem', borderRadius: 10, marginBottom: '0.875rem' }}>
+        <Sparkles size={14} color="#6366f1" style={{ flexShrink: 0 }} />
+        <input
+          type="text"
+          placeholder='AI filter — e.g. "Grade 10 students from UAE booked last week"'
+          value={nlQuery}
+          onChange={(e) => setNlQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') applyNlFilter(); }}
+          style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '0.82rem', color: 'var(--foreground)' }}
+        />
+        <button
+          onClick={applyNlFilter}
+          disabled={!nlQuery.trim() || nlLoading}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            background: '#6366f1', color: '#fff', border: 'none',
+            borderRadius: 7, padding: '0.3rem 0.625rem',
+            fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', opacity: nlLoading ? 0.6 : 1,
+          }}
+        >
+          {nlLoading ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+          {nlLoading ? 'Parsing…' : 'Apply'}
+        </button>
+        {activeCount > 0 && (
+          <button onClick={resetFilters} style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer' }}>Clear filters</button>
+        )}
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Table */}
       <div className="card-lg" style={{ overflow: 'hidden' }}>

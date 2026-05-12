@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/genai": "^2.1.0",
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.105.4",
     "airtable": "^0.12.2",
     "framer-motion": "^12.38.0",

@@ -39,32 +39,47 @@ export async function GET(req: NextRequest) {
         presales_agent_name
       )
     `, { count: 'exact' })
-    .order('enrollment_date', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order('enrollment_date', { ascending: false });
 
   if (subject) query = query.eq('subject_enrolled', subject);
   if (agent)   query = query.eq('sales_person_name', agent);
 
+  // Server-side search: find matching demo_booking_ids first, then filter.
+  // Doing this before .range() so count and pagination are correct.
+  if (search) {
+    const s = `%${search}%`;
+    const digits = search.replace(/\D/g, '');
+    const dp = digits && digits !== search ? `%${digits}%` : null;
+    const parts = [
+      `student_name.ilike."${s}"`,
+      `guardian_name.ilike."${s}"`,
+      `student_contact.ilike."${s}"`,
+      `whatsapp_contact.ilike."${s}"`,
+    ];
+    if (dp) parts.push(`student_contact.ilike."${dp}"`, `whatsapp_contact.ilike."${dp}"`);
+
+    const { data: matchingBookings, error: bErr } = await supabase
+      .from('demo_bookings')
+      .select('id')
+      .or(parts.join(','));
+
+    if (bErr) return NextResponse.json({ ok: false, error: bErr.message }, { status: 500 });
+
+    const matchingIds = (matchingBookings ?? []).map((b) => b.id);
+    if (matchingIds.length === 0) {
+      return NextResponse.json({ ok: true, data: [], count: 0, totalRevenue: 0, referrals: 0 });
+    }
+    query = query.in('demo_booking_id', matchingIds);
+  }
+
+  query = query.range(offset, offset + limit - 1);
+
   const { data, error, count } = await query;
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  // Client-side search on joined booking fields (PostgREST can't .or across nested relations)
-  let rows = data ?? [];
-  if (search) {
-    const q = search.toLowerCase();
-    rows = rows.filter((r) => {
-      const b = r.demo_bookings as unknown as Record<string, unknown> | null;
-      return (
-        String(b?.student_name ?? '').toLowerCase().includes(q) ||
-        String(b?.guardian_name ?? '').toLowerCase().includes(q) ||
-        String(b?.student_contact ?? '').includes(q)
-      );
-    });
-  }
-
-  // Summary stats
-  const totalRevenue = (data ?? []).reduce((s, r) => s + (r.collection_inr ?? 0), 0);
-  const referrals    = (data ?? []).filter((r) => r.is_referral).length;
+  const rows = data ?? [];
+  const totalRevenue = rows.reduce((s, r) => s + (r.collection_inr ?? 0), 0);
+  const referrals    = rows.filter((r) => r.is_referral).length;
 
   return NextResponse.json({ ok: true, data: rows, count, totalRevenue, referrals });
 }

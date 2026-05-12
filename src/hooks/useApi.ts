@@ -18,6 +18,12 @@ export function useApi<T>(url: string, initialData: T | null = null): State<T> {
   const refetch = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
+    if (!url) {
+      setLoading(false);
+      setData(null);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
     setError(null);

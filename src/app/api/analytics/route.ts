@@ -82,7 +82,6 @@ export async function GET() {
 
   const agentPerformance = Object.entries(agentMap)
     .sort((a, b) => b[1].total - a[1].total)
-    .slice(0, 15)
     .map(([agent, s]) => ({
       agent,
       total:    s.total,

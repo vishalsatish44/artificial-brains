@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TopBar from '@/components/TopBar';
 import { LeadDrawer } from '@/components/LeadDrawer';
 import { useApi } from '@/hooks/useApi';
 import { AlertTriangle, Search, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AiRecommend } from '@/components/AiRecommend';
 
 const PAGE_SIZE = 50;
 const MIN_DEMO_OPTS = [2, 3, 4, 5, 6, 10];
@@ -53,14 +54,22 @@ function pageWindows(cur: number, total: number): (number | '…')[] {
 }
 
 export default function DuplicatesPage() {
-  const [search, setSearch]     = useState('');
-  const [page, setPage]         = useState(0);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [minDemos, setMinDemos] = useState(2);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch]           = useState('');
+  const [page, setPage]               = useState(0);
+  const [activeId, setActiveId]       = useState<string | null>(null);
+  const [minDemos, setMinDemos]       = useState(2);
 
   function changeMin(v: number) { setMinDemos(v); setPage(0); }
 
-  const url = `/api/duplicates?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}&min_demos=${minDemos}`;
+  // Debounce search so we don't fire on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput); setPage(0); }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+  const url = `/api/duplicates?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}&min_demos=${minDemos}${searchParam}`;
   const { data, loading } = useApi<ApiResp>(url);
 
   const total      = data?.count ?? 0;
@@ -68,15 +77,7 @@ export default function DuplicatesPage() {
   const from       = page * PAGE_SIZE + 1;
   const to         = Math.min((page + 1) * PAGE_SIZE, total);
 
-  const rows = (data?.data ?? []).filter((r) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      r.student_name?.toLowerCase().includes(q) ||
-      r.guardian_name?.toLowerCase().includes(q) ||
-      r.student_contact?.includes(q)
-    );
-  });
+  const rows = data?.data ?? [];
 
   function goTo(p: number) {
     if (p < 0 || p >= totalPages) return;
@@ -133,8 +134,8 @@ export default function DuplicatesPage() {
           <input
             type="text"
             placeholder="Search by name or phone…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '0.85rem', width: 210 }}
           />
         </div>
@@ -219,16 +220,31 @@ export default function DuplicatesPage() {
                     ) : '—'}
                   </td>
                   <td style={{ padding: '0.875rem 1rem' }}>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {sc?.alert_sent_to_team && (
-                        <span style={{ fontSize: '0.65rem', background: '#eff6ff', color: '#3b82f6', padding: '0.15rem 0.4rem', borderRadius: 999, fontWeight: 600 }}>Team ✓</span>
-                      )}
-                      {sc?.reminder_sent_to_parent && (
-                        <span style={{ fontSize: '0.65rem', background: '#ecfdf5', color: '#10b981', padding: '0.15rem 0.4rem', borderRadius: 999, fontWeight: 600 }}>Parent ✓</span>
-                      )}
-                      {!sc?.alert_sent_to_team && !sc?.reminder_sent_to_parent && (
-                        <span style={{ fontSize: '0.65rem', background: '#fffbeb', color: '#f59e0b', padding: '0.15rem 0.4rem', borderRadius: 999, fontWeight: 600 }}>Pending</span>
-                      )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {sc?.alert_sent_to_team && (
+                          <span style={{ fontSize: '0.65rem', background: '#eff6ff', color: '#3b82f6', padding: '0.15rem 0.4rem', borderRadius: 999, fontWeight: 600 }}>Team ✓</span>
+                        )}
+                        {sc?.reminder_sent_to_parent && (
+                          <span style={{ fontSize: '0.65rem', background: '#ecfdf5', color: '#10b981', padding: '0.15rem 0.4rem', borderRadius: 999, fontWeight: 600 }}>Parent ✓</span>
+                        )}
+                        {!sc?.alert_sent_to_team && !sc?.reminder_sent_to_parent && (
+                          <span style={{ fontSize: '0.65rem', background: '#fffbeb', color: '#f59e0b', padding: '0.15rem 0.4rem', borderRadius: 999, fontWeight: 600 }}>Pending</span>
+                        )}
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <AiRecommend lead={{
+                          name:       r.guardian_name ?? r.student_name ?? 'Unknown',
+                          subject:    r.demo_subject,
+                          grade:      r.grade,
+                          demoCount:  sc?.demo_count ?? 0,
+                          lastDemo:   r.demo_datetime_cx ? new Date(r.demo_datetime_cx).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null,
+                          source:     r.lead_source,
+                          score:      sc?.score ?? 0,
+                          label:      sc?.score_label ?? 'Repeated',
+                          alertsSent: [sc?.alert_sent_to_team && 'team', sc?.reminder_sent_to_parent && 'parent'].filter(Boolean).join(', ') || 'none',
+                        }} />
+                      </div>
                     </div>
                   </td>
                   <td style={{ padding: '0.875rem 1rem' }}>

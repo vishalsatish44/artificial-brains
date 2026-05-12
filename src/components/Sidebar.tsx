@@ -50,63 +50,81 @@ const sections: Section[] = [
   },
 ];
 
-const Sidebar = () => {
+const Sidebar = ({ isHovered, setIsHovered }: { isHovered: boolean, setIsHovered: (v: boolean) => void }) => {
   const pathname = usePathname();
 
   return (
     <aside
       style={{
         height: '100vh',
-        width: '260px',
+        width: isHovered ? '260px' : '72px',
         position: 'fixed',
         left: 0,
         top: 0,
-        background: 'var(--surface)',
-        borderRight: '1px solid var(--border)',
+        background: 'rgba(5, 10, 20, 0.95)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderRight: '1px solid rgba(255, 255, 255, 0.05)',
         display: 'flex',
         flexDirection: 'column',
         padding: '1.5rem 0.75rem',
         zIndex: 100,
+        boxShadow: '4px 0 24px rgba(0, 0, 0, 0.15)',
+        transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        overflow: 'hidden',
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <Link
         href="/"
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '0.625rem',
-          padding: '0 0.75rem',
-          marginBottom: '0.5rem',
+          justifyContent: isHovered ? 'flex-start' : 'center',
+          marginBottom: '1.5rem',
+          transition: 'all 0.2s ease',
+          width: '100%',
+          paddingLeft: isHovered ? '0.75rem' : '0',
+          gap: '0.75rem',
         }}
+        onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+        onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 6px 16px rgba(16, 185, 129, 0.25)',
-          }}
-        >
-          <GraduationCap size={20} color="#ffffff" />
-        </div>
-        <div>
-          <div style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            Super Sheldon
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 500 }}>
-            Demo AI Console
+        <img 
+          src="/logo.png" 
+          alt="Logo" 
+          style={{ 
+            width: isHovered ? 55 : 44,
+            height: 'auto',
+            flexShrink: 0, 
+            borderRadius: '4px', 
+            filter: 'drop-shadow(0 0 5px rgba(0, 255, 255, 0.5))',
+            transition: 'all 0.2s ease',
+          }} 
+        />
+        <div style={{ 
+          opacity: isHovered ? 1 : 0, 
+          transition: 'opacity 0.2s ease',
+          whiteSpace: 'nowrap',
+          display: isHovered ? 'block' : 'none',
+        }}>
+          <div style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.04em', color: '#ffffff' }}>
+            Demo Audit
           </div>
         </div>
       </Link>
 
-      <nav style={{ flex: 1, marginTop: '0.5rem', overflowY: 'auto' }}>
+      <nav style={{ flex: 1, marginTop: '0.5rem', overflow: 'hidden' }}>
         {sections.map((section) => (
           <div key={section.label}>
-            <div className="section-label">{section.label}</div>
+            <div className="section-label" style={{ 
+              color: 'rgba(255, 255, 255, 0.4)',
+              opacity: isHovered ? 1 : 0,
+              transition: 'opacity 0.2s ease',
+              whiteSpace: 'nowrap',
+              visibility: isHovered ? 'visible' : 'hidden',
+            }}>{section.label}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {section.items.map((item) => {
                 const isActive = pathname === item.path;
@@ -121,21 +139,50 @@ const Sidebar = () => {
                       gap: '0.75rem',
                       padding: '0.625rem 0.75rem',
                       borderRadius: 10,
-                      color: isActive ? 'var(--foreground)' : 'var(--muted)',
-                      background: isActive ? 'var(--primary-soft)' : 'transparent',
+                      color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
+                      background: isActive ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
                       fontWeight: isActive ? 600 : 500,
                       fontSize: '0.875rem',
-                      transition: 'background 0.15s ease, color 0.15s ease',
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: isActive ? '0 4px 12px rgba(16, 185, 129, 0.15)' : 'none',
+                      overflow: 'hidden',
                     }}
                     onMouseOver={(e) => {
-                      if (!isActive) e.currentTarget.style.background = 'var(--background)';
+                      if (!isActive) {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                      }
                     }}
                     onMouseOut={(e) => {
-                      if (!isActive) e.currentTarget.style.background = 'transparent';
+                      if (!isActive) {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.transform = 'translateX(0)';
+                      }
                     }}
                   >
-                    <Icon size={18} color={isActive ? 'var(--primary)' : 'currentColor'} />
-                    {item.name}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 24,
+                      height: 24,
+                      borderRadius: 6,
+                      background: isActive ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                      transition: 'all 0.2s ease',
+                      flexShrink: 0,
+                    }}>
+                      <Icon size={16} color={isActive ? 'var(--primary)' : 'currentColor'} />
+                    </div>
+                    <span style={{ 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      whiteSpace: 'nowrap',
+                      opacity: isHovered ? 1 : 0,
+                      transition: 'opacity 0.2s ease',
+                      visibility: isHovered ? 'visible' : 'hidden',
+                    }}>
+                      {item.name}
+                    </span>
                   </Link>
                 );
               })}
@@ -144,25 +191,7 @@ const Sidebar = () => {
         ))}
       </nav>
 
-      <div
-        style={{
-          marginTop: '1rem',
-          padding: '1rem',
-          borderRadius: 14,
-          background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%)',
-          border: '1px solid #d1fae5',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <Sparkles size={14} color="var(--primary)" />
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)' }}>
-            AI Active
-          </span>
-        </div>
-        <p style={{ fontSize: '0.75rem', color: 'var(--muted)', lineHeight: 1.45 }}>
-          Sync Airtable from the Leads page to score all leads automatically.
-        </p>
-      </div>
+
     </aside>
   );
 };

@@ -64,7 +64,21 @@ export async function GET(req: NextRequest) {
   if (dateTo)      query = query.lte('form_filled_at', new Date(dateTo + 'T23:59:59').toISOString());
   if (search) {
     const s = `%${search}%`;
-    query = query.or(`student_name.ilike.${s},guardian_name.ilike.${s},student_contact.ilike.${s},student_email.ilike.${s}`);
+    // student_contact is stored digits-only (normPhone strips +, spaces, dashes).
+    // Also search the digit-only version so "+447..." matches stored "447...".
+    const digits = search.replace(/\D/g, '');
+    const dp = digits && digits !== search ? `%${digits}%` : null;
+    const parts = [
+      `student_name.ilike."${s}"`,
+      `guardian_name.ilike."${s}"`,
+      `student_email.ilike."${s}"`,
+      `whatsapp_contact.ilike."${s}"`,
+      `student_contact.ilike."${s}"`,
+    ];
+    if (dp) {
+      parts.push(`student_contact.ilike."${dp}"`, `whatsapp_contact.ilike."${dp}"`);
+    }
+    query = query.or(parts.join(','));
   }
 
   const { data, error, count } = await query;

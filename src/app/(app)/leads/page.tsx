@@ -87,12 +87,14 @@ const SkeletonCard = () => (
 
 function buildUrl(off: number, search: string, filters: FilterState): string {
   const params = new URLSearchParams({ limit: String(PAGE), offset: String(off) });
+  if (search) params.set('search', search);
   const fp = buildFilterParams(filters);
   Object.entries(fp).forEach(([k, v]) => params.set(k, v));
   return `/api/leads?${params.toString()}`;
 }
 
 export default function LeadsPage() {
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch]           = useState('');
   const [activeId, setActiveId]       = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -105,6 +107,11 @@ export default function LeadsPage() {
   const [syncing, setSyncing]         = useState(false);
 
   const { data: filterOpts } = useApi<{ ok: boolean } & FilterOptions>('/api/filter-options');
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const fetchLeads = useCallback(async (off: number, append: boolean, f: FilterState) => {
     const res  = await fetch(buildUrl(off, search, f));
@@ -183,8 +190,8 @@ export default function LeadsPage() {
           <input
             type="text"
             placeholder="Search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '0.875rem' }}
           />
         </div>

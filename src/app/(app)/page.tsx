@@ -6,6 +6,7 @@ import DashboardStats from '@/components/DashboardStats';
 import EngagementChart from '@/components/EngagementChart';
 import ChannelEngagement from '@/components/ChannelEngagement';
 import LeadGenerationChart from '@/components/LeadGenerationChart';
+import { AiInsights } from '@/components/AiInsights';
 import { useApi } from '@/hooks/useApi';
 
 type DashboardResp = {
@@ -14,8 +15,18 @@ type DashboardResp = {
   scoringCoverage: { pct: number; scored: number; total: number; monthly: number[] };
 };
 
+type StatsResp = {
+  ok: boolean;
+  total: number;
+  high: number;
+  moderate: number;
+  repeated: number;
+  unscored: number;
+};
+
 export default function DashboardPage() {
-  const { data, loading } = useApi<DashboardResp>('/api/dashboard');
+  const { data, loading }       = useApi<DashboardResp>('/api/dashboard');
+  const { data: statsData }     = useApi<StatsResp>('/api/stats');
 
   const last9Months = Array.from({ length: 9 }, (_, i) => {
     const d = new Date(new Date().getFullYear(), new Date().getMonth() - 8 + i, 1);
@@ -29,6 +40,16 @@ export default function DashboardPage() {
     const prev = monthly[monthly.length - 2];
     return prev ? Math.round(((last - prev) / Math.max(prev, 1)) * 100) : 0;
   })();
+
+  const insightStats = statsData ? {
+    totalBookings:    statsData.total,
+    highQuality:      statsData.high,
+    moderate:         statsData.moderate,
+    repeated:         statsData.repeated,
+    unscored:         statsData.unscored,
+    whatsappSent:     data?.whatsappNotifications.total ?? 0,
+    scoringCoverage:  `${data?.scoringCoverage.pct ?? 0}%`,
+  } : {};
 
   return (
     <div className="animate-fade-in">
@@ -62,7 +83,10 @@ export default function DashboardPage() {
         />
       </div>
 
-      <LeadGenerationChart />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+        <LeadGenerationChart />
+        <AiInsights stats={insightStats} />
+      </div>
     </div>
   );
 }

@@ -1,12 +1,69 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X, Phone, Mail, MapPin, User, Calendar, BookOpen,
   AlertTriangle, CheckCircle2, Clock, Copy, Send,
-  ShieldCheck, IndianRupee, MessageSquare,
+  ShieldCheck, IndianRupee, MessageSquare, Sparkles, Loader2,
 } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
+
+// ── AI Score Explainer ────────────────────────────────────────────────────────
+function AiExplainSection(props: {
+  score: number; label: string; flags: string[];
+  demoCount: number; duplicateDetected: boolean;
+  source: string; grade: string; subject: string; agent: string; name: string;
+}) {
+  const [text, setText]       = useState('');
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen]       = useState(false);
+
+  async function explain() {
+    if (text) { setOpen((o) => !o); return; }
+    setLoading(true); setOpen(true);
+    try {
+      const res  = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'explain', lead: props }),
+      });
+      const json = await res.json();
+      setText(json.ok ? json.text : 'Could not generate explanation.');
+    } catch { setText('Could not reach AI service.'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div style={{ marginTop: '0.75rem' }}>
+      <button
+        onClick={explain}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          background: open ? '#eff6ff' : 'var(--surface)',
+          color: '#6366f1', border: '1px solid #c7d2fe',
+          borderRadius: 8, padding: '0.25rem 0.625rem',
+          fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer',
+        }}
+      >
+        {loading
+          ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} />
+          : <Sparkles size={11} />}
+        {loading ? 'Analysing…' : open && text ? 'Hide explanation' : 'Explain this score (Gemini)'}
+      </button>
+      {open && text && (
+        <div style={{
+          marginTop: '0.625rem', padding: '0.75rem', borderRadius: 10,
+          background: '#eff6ff', border: '1px solid #c7d2fe',
+          fontSize: '0.78rem', lineHeight: 1.6, color: 'var(--foreground)',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type Props = {
   bookingId: string | null;
@@ -130,6 +187,7 @@ export const LeadDrawer = ({ bookingId, onClose }: Props) => {
   }, [onClose]);
 
   if (!bookingId) return null;
+  if (typeof document === 'undefined') return null;
 
   const b       = (data?.booking ?? {}) as Record<string, unknown>;
   const score   = (b.ai_lead_scores as Array<Record<string, unknown>>)?.[0];
@@ -137,13 +195,37 @@ export const LeadDrawer = ({ bookingId, onClose }: Props) => {
   const enroll  = data?.enrollmentInfo;
   const phone   = String(b.whatsapp_contact ?? b.student_contact ?? '');
 
-  return (
-    <>
-      <div ref={overlayRef} onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(2px)', zIndex: 200 }} />
-
-      <aside style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 500, background: 'var(--surface)', borderLeft: '1px solid var(--border)', zIndex: 201, overflowY: 'auto', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(15,23,42,0.08)' }}>
+  return createPortal(
+    <div
+      ref={overlayRef}
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(15,23,42,0.35)',
+        backdropFilter: 'blur(2px)',
+        zIndex: 200,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+        <aside 
+          onClick={(e) => e.stopPropagation()} 
+          style={{ 
+            width: 600, 
+            maxHeight: '85vh', 
+            background: '#f8fafc', 
+            borderRadius: 16,
+            overflowY: 'auto', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            border: '1px solid var(--border)',
+          }}
+        >
         {/* Header */}
-        <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: '#ffffff', zIndex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{loading ? '—' : String(b.guardian_name ?? b.student_name ?? 'Lead Detail')}</h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: 2 }}>Student: {loading ? '—' : String(b.student_name ?? '—')}</p>
@@ -151,14 +233,14 @@ export const LeadDrawer = ({ bookingId, onClose }: Props) => {
           <button onClick={onClose} className="icon-btn" aria-label="close"><X size={18} /></button>
         </div>
 
-        {loading ? (
+        {(loading || !data) ? (
           <div style={{ padding: '2rem', color: 'var(--muted-foreground)', fontSize: '0.875rem', textAlign: 'center' }}>Loading lead data…</div>
         ) : (
-          <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
             {/* AI Score */}
             {score && (
-              <div className="card" style={{ padding: '1rem' }}>
+              <div className="card" style={{ padding: '1rem', background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <ShieldCheck size={16} color="var(--primary)" /> AI Quality Score
@@ -175,11 +257,23 @@ export const LeadDrawer = ({ bookingId, onClose }: Props) => {
                     <AlertTriangle size={14} /> Repeat demo seeker — {Number(score.demo_count)} demo(s) detected
                   </div>
                 )}
+                <AiExplainSection
+                  score={Number(score.score)}
+                  label={String(score.score_label)}
+                  flags={(score.flags ?? []) as string[]}
+                  demoCount={Number(score.demo_count ?? 1)}
+                  duplicateDetected={Boolean(score.duplicate_detected)}
+                  source={String(b.lead_source ?? '')}
+                  grade={String(b.grade ?? '')}
+                  subject={String(b.demo_subject ?? '')}
+                  agent={data?.agentName ?? ''}
+                  name={String(b.guardian_name ?? b.student_name ?? '')}
+                />
               </div>
             )}
 
             {/* Contact Info */}
-            <div className="card" style={{ padding: '1rem' }}>
+            <div className="card" style={{ padding: '1rem', background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
               <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.875rem' }}>Contact Info</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
                 <InfoItem label="Phone" value={String(b.student_contact ?? b.whatsapp_contact ?? '—')} />
@@ -317,8 +411,9 @@ export const LeadDrawer = ({ bookingId, onClose }: Props) => {
 
           </div>
         )}
-      </aside>
-    </>
+        </aside>
+      </div>,
+    document.body
   );
 };
 
@@ -350,7 +445,7 @@ const HistoryRow = ({ label, date, subject, teacher, status, statusColor, pkg }:
   label: string; date: string; subject: string; teacher?: string;
   status: string; statusColor: string; pkg?: string;
 }) => (
-  <div className="card" style={{ padding: '0.75rem 0.875rem', display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+  <div className="card" style={{ padding: '0.75rem 0.875rem', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
     <div style={{ width: 8, height: 8, borderRadius: 999, background: statusColor, flexShrink: 0, marginTop: 6 }} />
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>

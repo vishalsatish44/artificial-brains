@@ -48,48 +48,7 @@ const TopBar = ({ searchPlaceholder = 'Search leads, parents, students…' }: Pr
         Ask AI
       </button>
 
-      <div
-        className="card"
-        style={{
-          flex: 1,
-          maxWidth: 560,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.625rem',
-          padding: '0.5rem 0.875rem',
-          borderRadius: 999,
-          margin: '0 auto',
-        }}
-      >
-        <Search size={16} color="var(--muted-foreground)" />
-        <input
-          type="text"
-          placeholder={searchPlaceholder}
-          style={{
-            flex: 1,
-            border: 'none',
-            outline: 'none',
-            background: 'transparent',
-            fontSize: '0.875rem',
-            color: 'var(--foreground)',
-          }}
-        />
-        <button
-          aria-label="filters"
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: 999,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--muted)',
-            background: 'var(--background)',
-          }}
-        >
-          <SlidersHorizontal size={14} />
-        </button>
-      </div>
+      <div style={{ flex: 1 }} />
 
       <button aria-label="notifications" className="icon-btn" style={{ position: 'relative' }}>
         <Bell size={18} />
